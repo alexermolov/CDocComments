@@ -1,0 +1,30 @@
+sudo: false
+
+os:
+  - osx
+  - linux
+
+cache:
+  bundler: true
+  directories:
+  - node_modules # NPM packages
+
+before_install:
+  - if [ $TRAVIS_OS_NAME == "linux" ]; then
+      export CXX="g++-4.9" CC="gcc-4.9" DISPLAY=:99.0;
+      sh -e /etc/init.d/xvfb start;
+      sleep 3;
+    fi
+
+install:
+  - npm install
+  - npm run vscode:prepublish
+
+script:
+  - npm test --silent
+  - npm run-script coverage_travis
+after_script: "cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js"
+
+language: node_js
+node_js:
+  - "6"
