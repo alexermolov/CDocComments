@@ -6,18 +6,21 @@ Generate documentation comments for Visual Studio Code.
 ## Usage
 
 Type "///", it auto-generates an XML doucumentation comment like this:
+```
 /// <summary>
 /// 
 /// </summary>
+```
 
 Type "/**", it auto-generates an doucumentation comment like this:
+```
 /** 
  * @brief  
  * @note   
  * @param  baudRate: 
  * @retval None
  */
-
+```
 
 ## Configuration
 
@@ -58,7 +61,7 @@ The menu under File > Preferences (Code > Preferences on Mac) provides entries t
 Clone a copy of the repo:
 
 ```
-git clone https://github.com/k--kato/vscode-docomment.git
+git clone https://github.com/AlexCoderCorp/CDocComments.git
 ```
 
 ### Building the code
@@ -80,7 +83,7 @@ when changes are saved.
 
 ## Contributors
 
-* [@ivanz](https://github.com/ivanz)
+* [@AlexCoderCorp](https://github.com/AlexCoderCorp)
 
 
 ## License
