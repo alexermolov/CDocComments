@@ -1,7 +1,7 @@
 {
     "name": "comments",
     "version": "1.0.0",
-    "publisher": "AlexRed",
+    "publisher": "AlexCoderCorp",
     "engines": {
         "vscode": "^1.12.2"
     },
