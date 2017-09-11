@@ -55,6 +55,11 @@ export class SyntacticAnalysisCSharp {
         return code.match(/\bnamespace\b/) !== null;
     }
 
+    public static IsGenericClass(code: string): boolean {
+        if (code === null) return false;
+        return code.match(/(?=(.*<.*>))\bclass\b/) !== null;
+    }
+
     public static IsClass(code: string): boolean {
         if (code === null) return false;
         return code.match(/\bclass\b/) !== null;
@@ -95,9 +100,19 @@ export class SyntacticAnalysisCSharp {
         return code.match(/[^()]+;[ \t]*$/) !== null;
     }
 
+    public static IsLazyField(code: string): boolean {
+        if (code === null) return false;
+        return code.match(/[^()]+(;|=|{|({.}))[ \t]*$/) !== null;
+    }
+
     public static IsMethod(code: string): boolean {
         if (code === null) return false;
         return code.match(/[\w\S]\s+[\w\S]+\s*\(.*\)/) !== null;
+    }
+
+    public static IsEmptyMethod(code: string): boolean {
+        if (code === null) return false;
+        return code.match(/[\w\S]+\(.*\)/) !== null;
     }
 
     public static IsComment(code: string): boolean {
@@ -106,10 +121,41 @@ export class SyntacticAnalysisCSharp {
         return code.match(/[ \t]+/) !== null;
     }
 
-    public static GetMethodParamNameList(code: string): Array<string> {
+    public static GetGenericParamNameList(code: string, isDefault: boolean): Array<string> {
         if (code === null) return null;
         const removedAttrCode: string = code.replace(/^\s*\[.+?\]/, ''); // FIXME:
-        const params: RegExpMatchArray = removedAttrCode.match(/[\w\S]\s+[\w\S]+\s*\(([^)]*)\)/);
+
+        const params: RegExpMatchArray = removedAttrCode.match(/<.*>/);
+        if (!params) return null;
+
+        let splittedParams: string[] = params[0].replace('<', '').replace('>', '').split(',');
+        const isMatched = (splittedParams === null || splittedParams.length < 1);
+        if (isMatched) return null;
+
+        let paramName: Array<string> = new Array<string>();
+        splittedParams.forEach(param => {
+            let name: RegExpMatchArray = null;
+            name = param.match(/(\S+)\s*$/);
+
+            if (name !== null && name.length === 2) {
+                paramName.push(name[1]);
+            }
+        });
+
+        return paramName;
+    }
+
+    public static GetMethodParamNameList(code: string, isDefault: boolean): Array<string> {
+        if (code === null) return null;
+        const removedAttrCode: string = code.replace(/^\s*\[.+?\]/, ''); // FIXME:
+
+        let params: RegExpMatchArray;
+
+        if (isDefault) {
+            params = removedAttrCode.match(/[\w\S]+\(([^)]*)\)/);
+        } else {
+            params = removedAttrCode.match(/[\w\S]\s+[\w\S]+\s*\(([^)]*)\)/);
+        }
 
         const isMatched = (params === null || params.length !== 2);
         if (isMatched) return null;

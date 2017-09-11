@@ -53,8 +53,6 @@ export class DocommentDomain implements IDocommentDomain {
         console.log(codeType);
         if (codeType === null) return;
 
-        
-
         // Gene Comment
         const docomment = this.GeneDocomment(code, codeType, language);
         console.log(docomment);
@@ -65,7 +63,6 @@ export class DocommentDomain implements IDocommentDomain {
 
         // Move Cursor to <Summary>
         this.MoveCursorTo(code, codeType, docomment);
-
     }
 
 

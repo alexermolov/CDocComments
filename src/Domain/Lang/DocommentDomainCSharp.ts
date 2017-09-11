@@ -44,8 +44,14 @@ export class DocommentDomainCSharp extends DocommentDomain {
         /* method */
         if (SyntacticAnalysisCSharp.IsMethod(code)) return CodeType.Method;
 
+        /* empty method */
+        if (SyntacticAnalysisCSharp.IsEmptyMethod(code)) return CodeType.DefaultMethod;
+
         /* namespace */
         if (SyntacticAnalysisCSharp.IsNamespace(code)) return CodeType.Namespace;
+
+        /* generic class */
+        if (SyntacticAnalysisCSharp.IsGenericClass(code)) return CodeType.GenericClass;
 
         /* class */
         if (SyntacticAnalysisCSharp.IsClass(code)) return CodeType.Class;
@@ -71,6 +77,8 @@ export class DocommentDomainCSharp extends DocommentDomain {
         /* field */
         if (SyntacticAnalysisCSharp.IsField(code)) return CodeType.Field;
 
+        if (SyntacticAnalysisCSharp.IsLazyField(code)) return CodeType.Field;
+
         /* comment */
         if (SyntacticAnalysisCSharp.IsComment(code)) return CodeType.Comment;
 
@@ -81,11 +89,15 @@ export class DocommentDomainCSharp extends DocommentDomain {
     public GeneDocomment(code: string, codeType: CodeType, language: string): string {
 
         let paramNameList: Array<string> = null;
+        let genericNameList: Array<string> = null;
         let hasReturn = false;
         switch (codeType) {
             case CodeType.Namespace:
                 break;
             case CodeType.Class:
+                break;
+            case CodeType.GenericClass:
+                genericNameList = SyntacticAnalysisCSharp.GetGenericParamNameList(code, false);
                 break;
             case CodeType.Interface:
                 break;
@@ -94,13 +106,17 @@ export class DocommentDomainCSharp extends DocommentDomain {
             case CodeType.Enum:
                 break;
             case CodeType.Delegate:
-                paramNameList = SyntacticAnalysisCSharp.GetMethodParamNameList(code);
+                paramNameList = SyntacticAnalysisCSharp.GetMethodParamNameList(code, false);
                 hasReturn = SyntacticAnalysisCSharp.HasMethodReturn(code);
                 break;
             case CodeType.Event:
                 break;
+            case CodeType.DefaultMethod:
+                paramNameList = SyntacticAnalysisCSharp.GetMethodParamNameList(code, true);
+                hasReturn = SyntacticAnalysisCSharp.HasMethodReturn(code);
+                break;
             case CodeType.Method:
-                paramNameList = SyntacticAnalysisCSharp.GetMethodParamNameList(code);
+                paramNameList = SyntacticAnalysisCSharp.GetMethodParamNameList(code, false);
                 hasReturn = SyntacticAnalysisCSharp.HasMethodReturn(code);
                 break;
             case CodeType.Field:
@@ -118,14 +134,14 @@ export class DocommentDomainCSharp extends DocommentDomain {
 
         switch (language) {
             case "csharp":
-                return this.GeneSummary(code, paramNameList, hasReturn);
+                return this.GeneSummary(code, paramNameList, hasReturn, genericNameList);
 
             case "cpp":
             case "c":
                 return this.GeneSummaryCpp(code, paramNameList, hasReturn);
 
             default:
-                return this.GeneSummary(code, paramNameList, hasReturn);
+                return this.GeneSummary(code, paramNameList, hasReturn, genericNameList);
         }
     }
 
@@ -212,8 +228,6 @@ export class DocommentDomainCSharp extends DocommentDomain {
             if (!SyntacticAnalysisCSharp.IsDocComment(activeLine)) {
                 return false;
             }
-        } else {
-            return false;
         }
 
         // OK
@@ -269,7 +283,7 @@ export class DocommentDomainCSharp extends DocommentDomain {
         return true;
     }
 
-    private GeneSummary(code: string, paramNameList: Array<string>, hasReturn: boolean): string {
+    private GeneSummary(code: string, paramNameList: Array<string>, hasReturn: boolean, genericParams: Array<string>): string {
 
         let docommentList: Array<string> = new Array<string>();
 
@@ -282,6 +296,13 @@ export class DocommentDomainCSharp extends DocommentDomain {
         if (paramNameList !== null) {
             paramNameList.forEach(name => {
                 docommentList.push('<param name="' + name + '"></param>');
+            });
+        }
+
+        /* generic <typeparam> */
+        if (genericParams) {
+            genericParams.forEach(name => {
+                docommentList.push('<typeparam name="' + name + '"></typeparam>');
             });
         }
 

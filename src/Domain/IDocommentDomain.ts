@@ -10,6 +10,7 @@ export enum CodeType {
     Comment,
     Namespace,
     Class,
+    GenericClass,
     Interface,
     Struct,
     Enum,
@@ -18,6 +19,7 @@ export enum CodeType {
     Property,
     Method,
     Event,
+    DefaultMethod,
 }
 
 export interface IDocommentDomain {

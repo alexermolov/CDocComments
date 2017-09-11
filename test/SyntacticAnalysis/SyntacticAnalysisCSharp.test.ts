@@ -201,7 +201,7 @@ suite('SyntacticAnalysis.SyntacticAnalysisCSharp.IsClass Tests', () => {
             const code = ' public void Save(string data, Action<AchievementSavedResponse> onComplete = null) {';
 
             // act
-            const actual: Array<string> = SyntacticAnalysisCSharp.GetMethodParamNameList(code);
+            const actual: Array<string> = SyntacticAnalysisCSharp.GetMethodParamNameList(code, false);
 
             // assert
             assert.equal(actual[0], 'data');

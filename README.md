@@ -12,7 +12,7 @@ Type "///", it auto-generates an XML doucumentation comment like this:
 /// </summary>
 ```
 
-Type "/**", it auto-generates an doucumentation comment like this:
+Type "/**" and push Enter, it auto-generates an doucumentation comment like this:
 ```
 /** 
  * @brief  
