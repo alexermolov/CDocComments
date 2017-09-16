@@ -7,6 +7,6 @@ export class DocommentControllerCSharp extends DocommentController {
      *-----------------------------------------------------------------------*/
 
     /* @override */
-    public _languageId: string = 'csharp&c';
+    public _languageId: string = 'csharp&c&cpp';
 
 }
