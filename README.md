@@ -5,14 +5,14 @@ Generate documentation comments for Visual Studio Code.
 
 ## Usage
 
-Type "///", it auto-generates an XML doucumentation comment like this:
+Type "///", it auto-generates an XML documentation comment like this:
 ```
 /// <summary>
 /// 
 /// </summary>
 ```
 
-Type "/**" and push Enter, it auto-generates an doucumentation comment like this:
+Type "/**" and push Enter, it auto-generates an documentation comment like this:
 ```
 /** 
  * @brief  
