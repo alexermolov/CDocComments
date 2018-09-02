@@ -55,32 +55,6 @@ The menu under File > Preferences (Code > Preferences on Mac) provides entries t
 - C++
 - C
 
-
-## Contributing to the Code
-
-Clone a copy of the repo:
-
-```
-git clone https://github.com/AlexCoderCorp/CDocComments.git
-```
-
-### Building the code
-
-First, install the package dependencies:
-
-```
-npm install
-```
-
-Now you can compile the code:
-
-```
-npm run compile
-```
-
-After the initial compile, the source files will be watched and recompiled
-when changes are saved.
-
 ## Contributors
 
 * [@AlexCoderCorp](https://github.com/AlexCoderCorp)

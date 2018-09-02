@@ -1,6 +1,6 @@
 {
     "name": "comments",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "publisher": "AlexCoderCorp",
     "engines": {
         "vscode": "^1.12.2"

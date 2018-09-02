@@ -83,6 +83,12 @@ export class VSCodeApi {
         });
     }
 
+    public DeleteText(anchor: Position, position: Position) {
+        this._activeEditor.edit((editBuilder) => {
+            editBuilder.delete(new Selection(anchor, position));
+        });
+    }
+
     public ReplaceText(selection: Selection, text: string) {
         this._activeEditor.edit((editBuilder) => {
             editBuilder.replace(selection, text);

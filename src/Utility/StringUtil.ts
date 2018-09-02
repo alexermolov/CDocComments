@@ -35,7 +35,7 @@ export class StringUtil {
 
     public static GetIndent(line: string, indentBaseLine: string, insertSpaces: boolean, detectIdentation: boolean): string {
         if (line === null) return null;
-        const indent: string = indentBaseLine.match(/([ \t]*)?/)[0];
+        const indent: string = line.match(/([ \t]*)?/)[0];
         const spaces: string = ' '.repeat(indent.length);
 
         if (detectIdentation) {
