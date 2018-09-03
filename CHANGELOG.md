@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.0.4 (Sep 3, 2018)
+
+* Fix auto indentation for comments block. Both types of comments indentation was fixed.
+
 ## 1.0.3 (Sep 16, 2017)
 
 * Fix c++ comments.
