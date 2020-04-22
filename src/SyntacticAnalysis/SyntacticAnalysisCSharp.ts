@@ -1,203 +1,225 @@
 export class SyntacticAnalysisCSharp {
+  /*-------------------------------------------------------------------------
+   * Field
+   *-----------------------------------------------------------------------*/
+  private static RESERVED_WORDS: RegExp = /(void|event|delegate|internal|public|protected|private|static|const|new|sealed|abstract|virtual|override|extern|unsafe|readonly|volatile|implicit|explicit|operator)/;
 
-    /*-------------------------------------------------------------------------
-     * Field
-     *-----------------------------------------------------------------------*/
-    private static RESERVED_WORDS: RegExp =
-    /(void|event|delegate|internal|public|protected|private|static|const|new|sealed|abstract|virtual|override|extern|unsafe|readonly|volatile|implicit|explicit|operator)/;
+  /*-------------------------------------------------------------------------
+   * Public Method: Comment Type
+   *-----------------------------------------------------------------------*/
+  public static IsEnterKey(activeChar: string, text: string): boolean {
+    const startsWith = text.startsWith('\n') || text.startsWith('\r\n');
+    const result: boolean = activeChar === '' && startsWith;
+    return result;
+  }
 
-    /*-------------------------------------------------------------------------
-     * Public Method: Comment Type
-     *-----------------------------------------------------------------------*/
-    public static IsEnterKey(activeChar: string, text: string): boolean {
-        const startsWith = text.startsWith('\n') || text.startsWith('\r\n');
-        const result: boolean = (activeChar === '') && startsWith;
-        return result;
+  public static IsSlashKey(activeChar: string): boolean {
+    return activeChar === '/';
+  }
+
+  public static IsSlashStarKey(activeChar: string): boolean {
+    return activeChar === '*|/';
+  }
+
+  public static IsDocCommentStrict(activeLine: string): boolean {
+    return (
+      activeLine.match(
+        /(?:[^/]\/{3}[ \t]*$)|(?:^\/{3}[^/])|(?:^\/{3}[ \t]*$)/
+      ) !== null
+    ); // FIXME:
+  }
+
+  public static IsCppCommentStrict(activeLine: string): boolean {
+    return activeLine.match(/(?![\d]+)\/\*\*\s*$/) !== null; // FIXME:
+  }
+
+  public static IsDocComment(activeLine: string): boolean {
+    return activeLine.match(/(?![\d]+)\/{3}\s*$/) !== null;
+  }
+
+  public static IsDoubleDocComment(activeLine: string): boolean {
+    return activeLine.match(/^[ \t]*\/{3} $/) !== null;
+  }
+
+  public static IsSharpCommentPart(activeLine: string): boolean {
+    return activeLine.trim().match(/^[\/]{3}/) !== null;
+  }
+  public static IsCppCommentPart(activeLine: string): boolean {
+    return (
+      activeLine.trim().match(/^\*\s/) !== null ||
+      activeLine.trim().match(/^\*\//) !== null
+    );
+  }
+
+  /*-------------------------------------------------------------------------
+   * Public Method: Code
+   *-----------------------------------------------------------------------*/
+  public static IsAttribute(code: string): boolean {
+    if (code === null) return false;
+    return code.match(/^\[.+\]$/) !== null;
+  }
+
+  /*-------------------------------------------------------------------------
+   * Public Method: Code Type
+   *-----------------------------------------------------------------------*/
+  public static IsNamespace(code: string): boolean {
+    if (code === null) return false;
+    return code.match(/\bnamespace\b/) !== null;
+  }
+
+  public static IsGenericClass(code: string): boolean {
+    if (code === null) return false;
+    return code.match(/(?=(.*<.*>))\bclass\b/) !== null;
+  }
+
+  public static IsClass(code: string): boolean {
+    if (code === null) return false;
+    return code.match(/\bclass\b/) !== null;
+  }
+
+  public static IsInterface(code: string): boolean {
+    if (code === null) return false;
+    return code.match(/\binterface\b/) !== null;
+  }
+
+  public static IsStruct(code: string): boolean {
+    if (code === null) return false;
+    return code.match(/\bstruct\b/) !== null;
+  }
+
+  public static IsEnum(code: string): boolean {
+    if (code === null) return false;
+    return code.match(/\benum\b/) !== null;
+  }
+
+  public static IsDelegate(code: string): boolean {
+    if (code === null) return false;
+    return code.match(/\bdelegate\b/) !== null;
+  }
+
+  public static IsEvent(code: string): boolean {
+    if (code === null) return false;
+    return code.match(/\bevent\b/) !== null;
+  }
+
+  public static IsProperty(code: string): boolean {
+    if (code === null) return false;
+    return code.match(/[\w\S]+[^)]?\b\s*{/) !== null;
+  }
+
+  public static IsField(code: string): boolean {
+    if (code === null) return false;
+    return code.match(/[^()]+;[ \t]*$/) !== null;
+  }
+
+  public static IsLazyField(code: string): boolean {
+    if (code === null) return false;
+    return code.match(/[^()]+(;|=|{|({.}))[ \t]*$/) !== null;
+  }
+
+  public static IsMethod(code: string): boolean {
+    if (code === null) return false;
+    return code.match(/[\w\S]\s+[\w\S]+\s*\(.*\)/) !== null;
+  }
+
+  public static IsEmptyMethod(code: string): boolean {
+    if (code === null) return false;
+    return code.match(/[\w\S]+\(.*\)/) !== null;
+  }
+
+  public static IsComment(code: string): boolean {
+    if (code === null) return false;
+    if (code === '') return true;
+    return code.match(/[ \t]+/) !== null;
+  }
+
+  public static GetGenericParamNameList(
+    code: string,
+    isDefault: boolean
+  ): Array<string> {
+    if (code === null) return null;
+    const removedAttrCode: string = code.replace(/^\s*\[.+?\]/, ''); // FIXME:
+
+    const params: RegExpMatchArray = removedAttrCode.match(/<.*>/);
+    if (!params) return null;
+
+    let splittedParams: string[] = params[0]
+      .replace('<', '')
+      .replace('>', '')
+      .split(',');
+    const isMatched = splittedParams === null || splittedParams.length < 1;
+    if (isMatched) return null;
+
+    let paramName: Array<string> = new Array<string>();
+    splittedParams.forEach((param) => {
+      let name: RegExpMatchArray = null;
+      name = param.match(/(\S+)\s*$/);
+
+      if (name !== null && name.length === 2) {
+        paramName.push(name[1]);
+      }
+    });
+
+    return paramName;
+  }
+
+  public static GetMethodParamNameList(
+    code: string,
+    isDefault: boolean
+  ): Array<string> {
+    if (code === null) return null;
+    const removedAttrCode: string = code.replace(/^\s*\[.+?\]/, ''); // FIXME:
+
+    let params: RegExpMatchArray;
+
+    if (isDefault) {
+      params = removedAttrCode.match(/[\w\S]+\(([^)]*)\)/);
+    } else {
+      params = removedAttrCode.match(/[\w\S]\s+[\w\S]+\s*\(([^)]*)\)/);
     }
 
-    public static IsSlashKey(activeChar: string): boolean {
-        return (activeChar === '/');
-    }
+    const isMatched = params === null || params.length !== 2;
+    if (isMatched) return null;
 
-    public static IsSlashStarKey(activeChar: string): boolean {
-        return (activeChar === '*|/');
-    }
+    let paramName: Array<string> = new Array<string>();
+    params[1].split(',').forEach((param) => {
+      const hasOptionalParam: boolean = param.match(/\S+\s+\S+\s*=/) !== null;
+      const hasTypeInfo: boolean = param.match(/[\w\W]+\s+[\w\W]+/) !== null;
+      let name: RegExpMatchArray = null;
+      if (hasOptionalParam) {
+        name = param.match(/\S+\s+(\S+)\s*=.*/);
+      } else if (!hasTypeInfo) {
+        name = null; // SKIP
+      } else {
+        name = param.match(/(\S+)\s*$/);
+      }
+      if (name !== null && name.length === 2) {
+        paramName.push(name[1]);
+      }
+    });
 
-    public static IsDocCommentStrict(activeLine: string): boolean {
-        return activeLine.match(/(?:[^/]\/{3}[ \t]*$)|(?:^\/{3}[^/])|(?:^\/{3}[ \t]*$)/) !== null; // FIXME:
-    }
+    return paramName;
+  }
 
-    public static IsCppCommentStrict(activeLine: string): boolean {
-        return activeLine.match(/(?![\d]+)\/\*\*\s*$/) !== null; // FIXME:
-    }
+  public static HasMethodReturn(code: string): boolean {
+    if (code === null) return false;
+    const returns: RegExpMatchArray = code.match(
+      /([\w\S]+)\s+[\w\S]+\s*\(.*\)/
+    );
 
-    public static IsDocComment(activeLine: string): boolean {
-        return activeLine.match(/(?![\d]+)\/{3}\s*$/) !== null;
-    }
+    const isMatched = returns === null || returns.length !== 2;
+    if (isMatched) return false;
 
-    public static IsDoubleDocComment(activeLine: string): boolean {
-        return activeLine.match(/^[ \t]*\/{3} $/) !== null;
-    }
+    return returns[1].match(this.RESERVED_WORDS) === null ? true : false;
+  }
 
-    /*-------------------------------------------------------------------------
-     * Public Method: Code
-     *-----------------------------------------------------------------------*/
-    public static IsAttribute(code: string): boolean {
-        if (code === null) return false;
-        return code.match(/^\[.+\]$/) !== null;
-    }
+  public static HasPropertyReturn(code: string): boolean {
+    if (code === null) return false;
+    const returns: RegExpMatchArray = code.match(/([\w\S]+)\s+[\w\S]+\s*\{/);
 
-    /*-------------------------------------------------------------------------
-     * Public Method: Code Type
-     *-----------------------------------------------------------------------*/
-    public static IsNamespace(code: string): boolean {
-        if (code === null) return false;
-        return code.match(/\bnamespace\b/) !== null;
-    }
+    const isMatched = returns === null || returns.length !== 2;
+    if (isMatched) return false;
 
-    public static IsGenericClass(code: string): boolean {
-        if (code === null) return false;
-        return code.match(/(?=(.*<.*>))\bclass\b/) !== null;
-    }
-
-    public static IsClass(code: string): boolean {
-        if (code === null) return false;
-        return code.match(/\bclass\b/) !== null;
-    }
-
-    public static IsInterface(code: string): boolean {
-        if (code === null) return false;
-        return code.match(/\binterface\b/) !== null;
-    }
-
-    public static IsStruct(code: string): boolean {
-        if (code === null) return false;
-        return code.match(/\bstruct\b/) !== null;
-    }
-
-    public static IsEnum(code: string): boolean {
-        if (code === null) return false;
-        return code.match(/\benum\b/) !== null;
-    }
-
-    public static IsDelegate(code: string): boolean {
-        if (code === null) return false;
-        return code.match(/\bdelegate\b/) !== null;
-    }
-
-    public static IsEvent(code: string): boolean {
-        if (code === null) return false;
-        return code.match(/\bevent\b/) !== null;
-    }
-
-    public static IsProperty(code: string): boolean {
-        if (code === null) return false;
-        return code.match(/[\w\S]+[^)]?\b\s*{/) !== null;
-    }
-
-    public static IsField(code: string): boolean {
-        if (code === null) return false;
-        return code.match(/[^()]+;[ \t]*$/) !== null;
-    }
-
-    public static IsLazyField(code: string): boolean {
-        if (code === null) return false;
-        return code.match(/[^()]+(;|=|{|({.}))[ \t]*$/) !== null;
-    }
-
-    public static IsMethod(code: string): boolean {
-        if (code === null) return false;
-        return code.match(/[\w\S]\s+[\w\S]+\s*\(.*\)/) !== null;
-    }
-
-    public static IsEmptyMethod(code: string): boolean {
-        if (code === null) return false;
-        return code.match(/[\w\S]+\(.*\)/) !== null;
-    }
-
-    public static IsComment(code: string): boolean {
-        if (code === null) return false;
-        if (code === '') return true;
-        return code.match(/[ \t]+/) !== null;
-    }
-
-    public static GetGenericParamNameList(code: string, isDefault: boolean): Array<string> {
-        if (code === null) return null;
-        const removedAttrCode: string = code.replace(/^\s*\[.+?\]/, ''); // FIXME:
-
-        const params: RegExpMatchArray = removedAttrCode.match(/<.*>/);
-        if (!params) return null;
-
-        let splittedParams: string[] = params[0].replace('<', '').replace('>', '').split(',');
-        const isMatched = (splittedParams === null || splittedParams.length < 1);
-        if (isMatched) return null;
-
-        let paramName: Array<string> = new Array<string>();
-        splittedParams.forEach(param => {
-            let name: RegExpMatchArray = null;
-            name = param.match(/(\S+)\s*$/);
-
-            if (name !== null && name.length === 2) {
-                paramName.push(name[1]);
-            }
-        });
-
-        return paramName;
-    }
-
-    public static GetMethodParamNameList(code: string, isDefault: boolean): Array<string> {
-        if (code === null) return null;
-        const removedAttrCode: string = code.replace(/^\s*\[.+?\]/, ''); // FIXME:
-
-        let params: RegExpMatchArray;
-
-        if (isDefault) {
-            params = removedAttrCode.match(/[\w\S]+\(([^)]*)\)/);
-        } else {
-            params = removedAttrCode.match(/[\w\S]\s+[\w\S]+\s*\(([^)]*)\)/);
-        }
-
-        const isMatched = (params === null || params.length !== 2);
-        if (isMatched) return null;
-
-        let paramName: Array<string> = new Array<string>();
-        params[1].split(',').forEach(param => {
-            const hasOptionalParam: boolean = param.match(/\S+\s+\S+\s*=/) !== null;
-            const hasTypeInfo: boolean = param.match(/[\w\W]+\s+[\w\W]+/) !== null;
-            let name: RegExpMatchArray = null;
-            if (hasOptionalParam) {
-                name = param.match(/\S+\s+(\S+)\s*=.*/);
-            } else if (!hasTypeInfo) {
-                name = null; // SKIP
-            } else {
-                name = param.match(/(\S+)\s*$/);
-            }
-            if (name !== null && name.length === 2) {
-                paramName.push(name[1]);
-            }
-        });
-
-        return paramName;
-    }
-
-    public static HasMethodReturn(code: string): boolean {
-        if (code === null) return false;
-        const returns: RegExpMatchArray = code.match(/([\w\S]+)\s+[\w\S]+\s*\(.*\)/);
-
-        const isMatched = (returns === null || returns.length !== 2);
-        if (isMatched) return false;
-
-        return (returns[1].match(this.RESERVED_WORDS) === null) ? true : false;
-    }
-
-    public static HasPropertyReturn(code: string): boolean {
-        if (code === null) return false;
-        const returns: RegExpMatchArray = code.match(/([\w\S]+)\s+[\w\S]+\s*\{/);
-
-        const isMatched = (returns === null || returns.length !== 2);
-        if (isMatched) return false;
-
-        return (returns[1].match(this.RESERVED_WORDS) === null) ? true : false;
-    }
-
+    return returns[1].match(this.RESERVED_WORDS) === null ? true : false;
+  }
 }

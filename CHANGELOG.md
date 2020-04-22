@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.0.5 (Apr 22, 2020)
+
+* Fix issue with new comment line.
+
+* Fix auto indentation for cpp and c comments block.
+
 ## 1.0.4 (Sep 3, 2018)
 
 * Fix auto indentation for comments block. Both types of comments indentation was fixed.

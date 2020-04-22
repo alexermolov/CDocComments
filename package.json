@@ -1,6 +1,6 @@
 {
     "name": "comments",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "publisher": "AlexCoderCorp",
     "engines": {
         "vscode": "^1.12.2"
@@ -39,8 +39,7 @@
         "C++",
         "C"
     ],
-    "dependencies": {
-    },
+    "dependencies": {},
     "devDependencies": {
         "typescript": "^2.3.2",
         "vscode": "^1.1.0",
@@ -52,8 +51,7 @@
         "@types/node": "^7.0.18",
         "@types/mocha": "^2.2.41"
     },
-    "extensionDependencies": [
-    ],
+    "extensionDependencies": [],
     "scripts": {
         "vscode:prepublish": "tsc -p ./",
         "compile": "tsc -watch -p ./",
