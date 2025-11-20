@@ -32,46 +32,57 @@ export class DocommentDomain implements IDocommentDomain {
     languageId: string,
     config: Configuration
   ) {
-    this._event = event;
-    this._activeEditor = activeEditor;
-    this._vsCodeApi = new VSCodeApi(activeEditor);
-    this._config = config;
-
-    // Detect Language
-    if (!this._vsCodeApi.IsLanguage(languageId)) return;
-
-    const language = this._vsCodeApi.GetLanguage();
-
-    if (this.IsTriggerNewCommentLine(language)) {
-      const emptyCommentLine = this.GeneEmptyCommentLine(language);
-
-      if (StringUtil.IsNullOrWhiteSpace(emptyCommentLine)) return;
-
-      const currentCode: string = this.GetCode();
-      this.WriteComment(currentCode, CodeType.Comment, emptyCommentLine);
-      this.MoveCursorTo(currentCode, CodeType.Comment, emptyCommentLine);
+    // Validate inputs
+    if (!activeEditor || !event || !languageId || !config) {
       return;
     }
 
-    // Can Fire Document Comment
-    if (!this.IsTriggerDocomment(language)) return;
+    try {
+      this._event = event;
+      this._activeEditor = activeEditor;
+      this._vsCodeApi = new VSCodeApi(activeEditor);
+      this._config = config;
 
-    // Get Code
-    const code: string = this.GetCode();
+      // Detect Language
+      if (!this._vsCodeApi.IsLanguage(languageId)) return;
 
-    // Detect Code Type
-    const codeType: CodeType = this.GetCodeType(code);
-    if (codeType === null) return;
+      const language = this._vsCodeApi.GetLanguage();
 
-    // Gene Comment
-    const docomment = this.GeneDocomment(code, codeType, language);
-    if (StringUtil.IsNullOrWhiteSpace(docomment)) return;
+      if (this.IsTriggerNewCommentLine(language)) {
+        const emptyCommentLine = this.GeneEmptyCommentLine(language);
 
-    // Write Comment
-    this.WriteComment(code, codeType, docomment);
+        if (StringUtil.IsNullOrWhiteSpace(emptyCommentLine)) return;
 
-    // Move Cursor to <Summary>
-    this.MoveCursorTo(code, codeType, docomment);
+        const currentCode: string = this.GetCode();
+        this.WriteComment(currentCode, CodeType.Comment, emptyCommentLine);
+        this.MoveCursorTo(currentCode, CodeType.Comment, emptyCommentLine);
+        return;
+      }
+
+      // Can Fire Document Comment
+      if (!this.IsTriggerDocomment(language)) return;
+
+      // Get Code
+      const code: string = this.GetCode();
+      if (!code) return;
+
+      // Detect Code Type
+      const codeType: CodeType = this.GetCodeType(code);
+      if (codeType === null || codeType === CodeType.None) return;
+
+      // Gene Comment
+      const docomment = this.GeneDocomment(code, codeType, language);
+      if (StringUtil.IsNullOrWhiteSpace(docomment)) return;
+
+      // Write Comment
+      this.WriteComment(code, codeType, docomment);
+
+      // Move Cursor to <Summary>
+      this.MoveCursorTo(code, codeType, docomment);
+    } catch (error) {
+      // Silently fail to avoid disrupting user experience
+      console.error('Error in DocommentDomain.Execute:', error);
+    }
   }
 
   /*-------------------------------------------------------------------------

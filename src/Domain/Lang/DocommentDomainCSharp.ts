@@ -48,11 +48,19 @@ export class DocommentDomainCSharp extends DocommentDomain {
     const code: string = this._vsCodeApi.ReadNextCodeFromCurrent(
       this._config.eol
     );
+    
+    if (!code) return null;
+    
+    // Remove attributes from code
     const removedAttr: string = code
       .split(this._config.eol)
-      .filter((line) => !SyntacticAnalysisCSharp.IsAttribute(line.trim()))
-      .join('');
-    return removedAttr;
+      .filter((line) => {
+        const trimmed = line.trim();
+        return trimmed && !SyntacticAnalysisCSharp.IsAttribute(trimmed);
+      })
+      .join(' ');
+    
+    return removedAttr || null;
   }
 
   /* @override */
@@ -205,6 +213,8 @@ export class DocommentDomainCSharp extends DocommentDomain {
     codeType: CodeType,
     docomment: string
   ): void {
+    if (!docomment) return;
+    
     const position: Position = this._vsCodeApi.GetActivePosition();
 
     if (codeType === CodeType.Comment) {
@@ -222,27 +232,26 @@ export class DocommentDomainCSharp extends DocommentDomain {
       );
       const insertPosition: Position = this._vsCodeApi.GetPosition(
         position.line + 1,
-        indentLen - 1
+        Math.max(0, indentLen)
       );
       this._vsCodeApi.InsertText(insertPosition, docomment);
     } else {
       const active: Position = this._vsCodeApi.GetActivePosition();
       const anchor: Position = this._vsCodeApi.GetPosition(active.line, 0);
-      const start: Position = this._vsCodeApi.GetPosition(active.line, 0);
       let replaceSelection: Selection;
 
       if (this._isEnterKey) {
         const end: Position = this._vsCodeApi.GetPosition(
           active.line + 1,
-          active.character
+          0
         );
         replaceSelection = this._vsCodeApi.GetSelectionByPosition(anchor, end);
       } else {
         const end: Position = this._vsCodeApi.GetPosition(
           active.line,
-          active.character + 1
+          active.character
         );
-        replaceSelection = this._vsCodeApi.GetSelectionByPosition(start, end);
+        replaceSelection = this._vsCodeApi.GetSelectionByPosition(anchor, end);
       }
 
       this._vsCodeApi.ReplaceText(replaceSelection, docomment);
@@ -255,6 +264,8 @@ export class DocommentDomainCSharp extends DocommentDomain {
     codeType: CodeType,
     docomment: string
   ): void {
+    if (!docomment) return;
+    
     const curPosition = this._vsCodeApi.GetActivePosition();
     const indentBaseLine: string = this._vsCodeApi.ReadLineAtCurrent();
     const indent: string = StringUtil.GetIndent(
@@ -268,10 +279,12 @@ export class DocommentDomainCSharp extends DocommentDomain {
       this._config.insertSpaces,
       this._config.detectIdentation
     );
-    this._vsCodeApi.MoveSelection(
-      curPosition.line + 1,
-      indentLen - 1 + docomment.length
-    );
+    
+    // Move cursor to the summary section
+    const targetLine = curPosition.line + 1;
+    const targetChar = Math.max(0, indentLen + docomment.indexOf('summary>') + 8);
+    
+    this._vsCodeApi.MoveSelection(targetLine, targetChar);
   }
 
   /*-------------------------------------------------------------------------
@@ -440,11 +453,11 @@ export class DocommentDomainCSharp extends DocommentDomain {
 
   private GeneSummary(
     code: string,
-    paramNameList: Array<string>,
+    paramNameList: Array<string> | null,
     hasReturn: boolean,
-    genericParams: Array<string>
+    genericParams: Array<string> | null
   ): string {
-    let docommentList: Array<string> = new Array<string>();
+    const docommentList: string[] = [];
 
     /* <summary> */
     docommentList.push('<summary>');
@@ -452,16 +465,16 @@ export class DocommentDomainCSharp extends DocommentDomain {
     docommentList.push('</summary>');
 
     /* <param> */
-    if (paramNameList !== null) {
+    if (paramNameList && paramNameList.length > 0) {
       paramNameList.forEach((name) => {
-        docommentList.push('<param name="' + name + '"></param>');
+        docommentList.push(`<param name="${name}"></param>`);
       });
     }
 
     /* generic <typeparam> */
-    if (genericParams) {
+    if (genericParams && genericParams.length > 0) {
       genericParams.forEach((name) => {
-        docommentList.push('<typeparam name="' + name + '"></typeparam>');
+        docommentList.push(`<typeparam name="${name}"></typeparam>`);
       });
     }
 
@@ -470,42 +483,35 @@ export class DocommentDomainCSharp extends DocommentDomain {
       docommentList.push('<returns></returns>');
     }
 
-    // Format
-    let indentBaseLine: string = this._vsCodeApi.ReadLineAtCurrent();
-
+    // Format with proper indentation
+    const indentBaseLine: string = this._vsCodeApi.ReadLineAtCurrent();
     const indent: string = StringUtil.GetIndent(
       code,
       indentBaseLine,
       this._config.insertSpaces,
       this._config.detectIdentation
     );
-    let docomment = indent + '///' + ' ' + docommentList[0] + '\n';
-    for (let i = 1; i < docommentList.length; i++) {
-      docomment += indent + '/// ' + docommentList[i];
-      if (i !== docommentList.length - 1) {
-        docomment += '\n';
-      }
-    }
-
-    return docomment;
+    
+    const formattedLines = docommentList.map(line => `${indent}/// ${line}`);
+    return formattedLines.join('\n');
   }
 
   private GeneSummaryCpp(
     code: string,
-    paramNameList: Array<string>,
+    paramNameList: Array<string> | null,
     hasReturn: boolean
   ): string {
-    let docommentList: Array<string> = new Array<string>();
+    const docommentList: string[] = [];
 
-    /* <summary> */
-    docommentList.push('\n');
+    /* C-style documentation comment */
+    docommentList.push('/**');
     docommentList.push(' * @brief  ');
     docommentList.push(' * @note   ');
 
     /* <param> */
-    if (paramNameList !== null) {
+    if (paramNameList && paramNameList.length > 0) {
       paramNameList.forEach((name) => {
-        docommentList.push(' * @param  ' + name + ': ');
+        docommentList.push(` * @param  ${name}: `);
       });
     }
 
@@ -518,26 +524,24 @@ export class DocommentDomainCSharp extends DocommentDomain {
 
     docommentList.push(' */');
 
-    // Format
+    // Format with proper indentation
     const indentBaseLine: string = this._vsCodeApi.ReadLineAtCurrent();
-    if (code.charAt(0) === '*') {
-      code = code.substr(1);
+    let cleanCode = code;
+    if (cleanCode.startsWith('*')) {
+      cleanCode = cleanCode.substring(1);
     }
 
     const indent: string = StringUtil.GetIndent(
-      code.substr(1),
+      cleanCode,
       indentBaseLine,
       this._config.insertSpaces,
       this._config.detectIdentation
     );
-    let docomment = indent + '/**' + docommentList[0];
-    for (let i = 1; i < docommentList.length; i++) {
-      docomment += indent + docommentList[i];
-      if (i !== docommentList.length - 1) {
-        docomment += '\n';
-      }
-    }
-
-    return docomment;
+    
+    const formattedLines = docommentList.map((line, index) => {
+      return index === 0 ? `${indent}${line}` : `${indent}${line}`;
+    });
+    
+    return formattedLines.join('\n');
   }
 }

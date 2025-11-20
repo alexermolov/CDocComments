@@ -22,14 +22,8 @@ export class VSCodeApi {
      *-----------------------------------------------------------------------*/
     public IsLanguage(languageId: string): boolean {
         const splitted = languageId.split('&');
-        var result = false;
-
-        for (var i = 0; i < splitted.length; i++) {
-            if (this._activeEditor.document.languageId === splitted[i])
-                result = true;
-        }
-
-        return result;
+        const currentLanguage = this._activeEditor.document.languageId;
+        return splitted.includes(currentLanguage);
     }
 
     public GetLanguage(): string {
@@ -96,6 +90,9 @@ export class VSCodeApi {
     }
 
     public ReadLine(line: number): string {
+        if (line < 0 || line >= this._activeEditor.document.lineCount) {
+            return '';
+        }
         return this._activeEditor.document.lineAt(line).text;
     }
 
@@ -104,32 +101,38 @@ export class VSCodeApi {
     }
 
     public ReadCharAtCurrent(): string {
-        return this.ReadLineAtCurrent().charAt(this.GetActiveCharPosition());
+        const line = this.ReadLineAtCurrent();
+        const charPos = this.GetActiveCharPosition();
+        if (charPos < 0 || charPos >= line.length) {
+            return '';
+        }
+        return line.charAt(charPos);
     }
 
     public ReadNextCodeFromCurrent(eol: string = '\n'): string {
         const lineCount: number = this.GetLineCount();
         const curLine: number = this.GetActiveLine();
 
-        let code = '';
-        for (let i: number = curLine; i < lineCount - 1; i++) {
+        const codeLines: string[] = [];
+        
+        // Read up to 20 lines or until code block start is found
+        for (let i: number = curLine + 1; i < lineCount && i < curLine + 21; i++) {
+            const line: string = this.ReadLine(i);
 
-            const line: string = this.ReadLine(i + 1);
-
-            // Skip empty line
+            // Skip empty lines
             if (StringUtil.IsNullOrWhiteSpace(line)) continue;
 
-            code += line + eol;
+            codeLines.push(line);
 
-            // Detect start of code
-            if (!StringUtil.IsCodeBlockStart(line)) {
-                continue;
+            // Detect end of code signature
+            if (StringUtil.IsCodeBlockStart(line)) {
+                const code = codeLines.join(eol);
+                return StringUtil.RemoveComment(code);
             }
-
-            return StringUtil.RemoveComment(code);
         }
 
-        return null;
+        // Return what we have if no code block start found
+        return codeLines.length > 0 ? StringUtil.RemoveComment(codeLines.join(eol)) : null;
     }
 
     public ReadPreviousCodeFromCurrent(): string {
@@ -159,13 +162,11 @@ export class VSCodeApi {
     public ReadPreviousLineFromCurrent(): string {
         const curLine: number = this.GetActiveLine();
 
-        for (let i: number = curLine; 0 < i; i--) {
-
-            // Skip empty line
-            const line: string = this.ReadLine(i - 1);
-            if (StringUtil.IsNullOrWhiteSpace(line)) continue;
-
-            return line;
+        for (let i: number = curLine - 1; i >= 0; i--) {
+            const line: string = this.ReadLine(i);
+            if (!StringUtil.IsNullOrWhiteSpace(line)) {
+                return line;
+            }
         }
 
         return null;
@@ -175,13 +176,11 @@ export class VSCodeApi {
         const lineCount: number = this.GetLineCount();
         const curLine: number = this.GetActiveLine();
 
-        for (let i: number = curLine; i < lineCount - 1; i++) {
-
-            // Skip empty line
-            const line: string = this.ReadLine(i + 1);
-            if (StringUtil.IsNullOrWhiteSpace(line)) continue;
-
-            return line;
+        for (let i: number = curLine + 1; i < lineCount; i++) {
+            const line: string = this.ReadLine(i);
+            if (!StringUtil.IsNullOrWhiteSpace(line)) {
+                return line;
+            }
         }
 
         return null;

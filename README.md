@@ -1,6 +1,8 @@
-# XML Documentation Comments Support for Visual Studio Code
+# C-family Documentation Comments
 
-Generate documentation comments for Visual Studio Code.
+Generate XML/Doxygen documentation comments for C#, C, and C++ in Visual Studio Code.
+
+> **Note**: This is a continuation of the original extension, now maintained by the original author under a new publisher ID.
 
 
 ## Usage
@@ -57,7 +59,7 @@ The menu under File > Preferences (Code > Preferences on Mac) provides entries t
 
 ## Contributors
 
-* [@AlexCoderCorp](https://github.com/AlexCoderCorp)
+* [@alexermolov](https://github.com/alexermolov)
 
 
 ## License

@@ -18,37 +18,39 @@ export class SyntacticAnalysisCSharp {
   }
 
   public static IsSlashStarKey(activeChar: string): boolean {
-    return activeChar === '*|/';
+    return activeChar === '*' || activeChar === '/';
   }
 
   public static IsDocCommentStrict(activeLine: string): boolean {
-    return (
-      activeLine.match(
-        /(?:[^/]\/{3}[ \t]*$)|(?:^\/{3}[^/])|(?:^\/{3}[ \t]*$)/
-      ) !== null
-    ); // FIXME:
+    // Check for exactly three slashes followed by optional whitespace at the end
+    // or three slashes at start not followed by fourth slash
+    const trimmed = activeLine.trim();
+    return trimmed.match(/^\/\/\/(?!\/)(\s*)$/) !== null;
   }
 
   public static IsCppCommentStrict(activeLine: string): boolean {
-    return activeLine.match(/(?![\d]+)\/\*\*\s*$/) !== null; // FIXME:
+    // Check for /** at the end with optional whitespace
+    return activeLine.trim().match(/\/\*\*\s*$/) !== null;
   }
 
   public static IsDocComment(activeLine: string): boolean {
-    return activeLine.match(/(?![\d]+)\/{3}\s*$/) !== null;
+    // Check for three slashes followed by optional whitespace at the end
+    return activeLine.trim().match(/^\/\/\/\s*$/) !== null;
   }
 
   public static IsDoubleDocComment(activeLine: string): boolean {
-    return activeLine.match(/^[ \t]*\/{3} $/) !== null;
+    // Check for exactly '/// ' (three slashes followed by a space at the end)
+    return activeLine.trim().match(/^\/\/\/\s$/) !== null;
   }
 
   public static IsSharpCommentPart(activeLine: string): boolean {
-    return activeLine.trim().match(/^[\/]{3}/) !== null;
+    // Check if line starts with three slashes (C# comment part)
+    return activeLine.trim().startsWith('///');
   }
   public static IsCppCommentPart(activeLine: string): boolean {
-    return (
-      activeLine.trim().match(/^\*\s/) !== null ||
-      activeLine.trim().match(/^\*\//) !== null
-    );
+    // Check if line is part of C-style comment (* or */)
+    const trimmed = activeLine.trim();
+    return trimmed.startsWith('* ') || trimmed.startsWith('*/');
   }
 
   /*-------------------------------------------------------------------------
@@ -69,7 +71,8 @@ export class SyntacticAnalysisCSharp {
 
   public static IsGenericClass(code: string): boolean {
     if (code === null) return false;
-    return code.match(/(?=(.*<.*>))\bclass\b/) !== null;
+    // Check for class with generic type parameters: class Name<T>
+    return code.match(/\bclass\b\s+\w+\s*<[^>]+>/) !== null;
   }
 
   public static IsClass(code: string): boolean {
@@ -136,69 +139,77 @@ export class SyntacticAnalysisCSharp {
   public static GetGenericParamNameList(
     code: string,
     isDefault: boolean
-  ): Array<string> {
-    if (code === null) return null;
-    const removedAttrCode: string = code.replace(/^\s*\[.+?\]/, ''); // FIXME:
+  ): Array<string> | null {
+    if (!code) return null;
+    
+    // Remove attributes
+    const removedAttrCode: string = code.replace(/^\s*\[.+?\]/g, '');
 
-    const params: RegExpMatchArray = removedAttrCode.match(/<.*>/);
-    if (!params) return null;
+    // Match generic parameters between < and >
+    const params: RegExpMatchArray = removedAttrCode.match(/<([^>]+)>/);
+    if (!params || params.length < 2) return null;
 
-    let splittedParams: string[] = params[0]
-      .replace('<', '')
-      .replace('>', '')
-      .split(',');
-    const isMatched = splittedParams === null || splittedParams.length < 1;
-    if (isMatched) return null;
+    // Split by comma and extract parameter names
+    const splittedParams: string[] = params[1]
+      .split(',')
+      .map(p => p.trim())
+      .filter(p => p.length > 0);
+    
+    if (splittedParams.length === 0) return null;
 
-    let paramName: Array<string> = new Array<string>();
-    splittedParams.forEach((param) => {
-      let name: RegExpMatchArray = null;
-      name = param.match(/(\S+)\s*$/);
-
-      if (name !== null && name.length === 2) {
-        paramName.push(name[1]);
+    const paramNames: string[] = [];
+    for (const param of splittedParams) {
+      // Extract parameter name (handle constraints like "T where T : class")
+      const match = param.match(/^(\w+)/);
+      if (match) {
+        paramNames.push(match[1]);
       }
-    });
+    }
 
-    return paramName;
+    return paramNames.length > 0 ? paramNames : null;
   }
 
   public static GetMethodParamNameList(
     code: string,
     isDefault: boolean
-  ): Array<string> {
-    if (code === null) return null;
-    const removedAttrCode: string = code.replace(/^\s*\[.+?\]/, ''); // FIXME:
+  ): Array<string> | null {
+    if (!code) return null;
+    
+    // Remove attributes
+    const removedAttrCode: string = code.replace(/^\s*\[.+?\]/g, '');
 
     let params: RegExpMatchArray;
 
     if (isDefault) {
+      // Constructor or method without return type: Name(...)
       params = removedAttrCode.match(/[\w\S]+\(([^)]*)\)/);
     } else {
+      // Method with return type: Type Name(...)
       params = removedAttrCode.match(/[\w\S]\s+[\w\S]+\s*\(([^)]*)\)/);
     }
 
-    const isMatched = params === null || params.length !== 2;
-    if (isMatched) return null;
+    if (!params || params.length !== 2 || !params[1].trim()) return null;
 
-    let paramName: Array<string> = new Array<string>();
-    params[1].split(',').forEach((param) => {
-      const hasOptionalParam: boolean = param.match(/\S+\s+\S+\s*=/) !== null;
-      const hasTypeInfo: boolean = param.match(/[\w\W]+\s+[\w\W]+/) !== null;
-      let name: RegExpMatchArray = null;
-      if (hasOptionalParam) {
-        name = param.match(/\S+\s+(\S+)\s*=.*/);
-      } else if (!hasTypeInfo) {
-        name = null; // SKIP
-      } else {
-        name = param.match(/(\S+)\s*$/);
-      }
-      if (name !== null && name.length === 2) {
-        paramName.push(name[1]);
-      }
-    });
+    const paramNames: string[] = [];
+    const paramList = params[1].split(',');
+    
+    for (const param of paramList) {
+      const trimmedParam = param.trim();
+      if (!trimmedParam) continue;
 
-    return paramName;
+      // Handle different parameter formats:
+      // - Type name
+      // - Type name = defaultValue
+      // - ref/out/in Type name
+      // - params Type[] name
+      const match = trimmedParam.match(/(?:ref\s+|out\s+|in\s+|params\s+)?(?:[\w<>\[\]]+)\s+(\w+)(?:\s*=.*)?$/);
+      
+      if (match && match[1]) {
+        paramNames.push(match[1]);
+      }
+    }
+
+    return paramNames.length > 0 ? paramNames : null;
   }
 
   public static HasMethodReturn(code: string): boolean {

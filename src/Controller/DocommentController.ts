@@ -77,8 +77,17 @@ export class DocommentController implements IDocommentController {
      * Event
      *-----------------------------------------------------------------------*/
     private _onEvent(activeEditor: TextEditor, event: TextDocumentContentChangeEvent) {
-        // Insert XML document comment
-        this._docommentDomain.Execute(activeEditor, event, this._languageId, this._config);
+        // Validate inputs before processing
+        if (!activeEditor || !event || !this._docommentDomain || !this._config) {
+            return;
+        }
+        
+        try {
+            // Insert XML document comment
+            this._docommentDomain.Execute(activeEditor, event, this._languageId, this._config);
+        } catch (error) {
+            console.error('Error in DocommentController._onEvent:', error);
+        }
     }
 
 }

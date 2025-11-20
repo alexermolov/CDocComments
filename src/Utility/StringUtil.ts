@@ -29,39 +29,54 @@ export class StringUtil {
     }
 
     public static RemoveComment(line: string): string {
-        if (line === null) return null;
-        return line.replace(/\/\/.*/, '').replace(/\/\*.*\*\//, '');
+        if (!line) return '';
+        // Remove single-line comments (// ...)
+        // Remove multi-line comments (/* ... */)
+        return line
+            .replace(/\/\/.*$/gm, '')
+            .replace(/\/\*[\s\S]*?\*\//g, '')
+            .trim();
     }
 
     public static GetIndent(line: string, indentBaseLine: string, insertSpaces: boolean, detectIdentation: boolean): string {
-        if (line === null) return null;
-        const indent: string = line.match(/([ \t]*)?/)[0];
-        const spaces: string = ' '.repeat(indent.length);
+        if (!line && !indentBaseLine) return '';
+        
+        // Use indentBaseLine if line is not provided or is empty
+        const sourceString = line || indentBaseLine;
+        const match = sourceString.match(/^([ \t]*)/);
+        const indent: string = match ? match[1] : '';
+        
+        if (!indent) return '';
 
         if (detectIdentation) {
-            const isSpaceIdentation: boolean = (indent.match(/([ ]+)/) !== null);
+            // Detect if indentation uses spaces or tabs
+            const isSpaceIdentation: boolean = indent.includes(' ');
             insertSpaces = isSpaceIdentation;
         }
 
         if (insertSpaces) {
-            return indent.split('\t').join(spaces);
+            // Convert tabs to spaces (assuming tab = 4 spaces)
+            return indent.replace(/\t/g, '    ');
         } else {
-            return indent.split(spaces).join('\t');
+            // Convert spaces to tabs (4 spaces = 1 tab)
+            return indent.replace(/    /g, '\t');
         }
     }
 
     public static GetIndentLen(indent: string, insertSpaces: boolean, detectIdentation: boolean): number {
-        if (indent === null) return 0;
+        if (!indent) return 0;
 
         if (detectIdentation) {
-            const isSpaceIdentation: boolean = (indent.match(/([ ]+)/) !== null);
+            const isSpaceIdentation: boolean = indent.includes(' ');
             insertSpaces = isSpaceIdentation;
         }
 
         if (insertSpaces) {
-            return indent.split(' ').length;
+            // Count spaces (tabs count as 4 spaces)
+            return indent.replace(/\t/g, '    ').length;
         } else {
-            return indent.split('\t').length;
+            // Count tabs (4 spaces = 1 tab)
+            return indent.replace(/    /g, '\t').length;
         }
     }
 

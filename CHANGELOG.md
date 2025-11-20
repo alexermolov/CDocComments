@@ -1,5 +1,16 @@
 # Change Log
 
+## 1.1.5 (Nov 20, 2025)
+
+* **Publisher Migration**: Moved to alexermolov publisher (original author)
+* **Major Code Refactoring**: Fixed logic errors and improved performance
+  * Fixed regex patterns in SyntacticAnalysisCSharp for better code detection
+  * Improved parameter parsing for generic types and method parameters
+  * Optimized VSCodeApi methods to reduce unnecessary iterations
+  * Fixed StringUtil indentation handling
+  * Enhanced error handling and null safety throughout the codebase
+  * Improved comment generation logic for both C# and C++ styles
+
 ## 1.0.5 (Apr 22, 2020)
 
 * Fix issue with new comment line.
