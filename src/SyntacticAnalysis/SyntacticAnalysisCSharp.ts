@@ -29,8 +29,19 @@ export class SyntacticAnalysisCSharp {
   }
 
   public static IsCppCommentStrict(activeLine: string): boolean {
-    // Check for /** at the end with optional whitespace
-    return activeLine.trim().match(/\/\*\*\s*$/) !== null;
+    if (activeLine === null || activeLine === undefined) return false;
+
+    const trimmed: string = activeLine.trim();
+    if (trimmed.match(/\/\*\*\s*$/)) {
+      return true;
+    }
+
+    // Allow auto-inserted closing markers such as /**/ or /** */
+    if (trimmed.match(/\/\*\*\s*\*\/\s*$/)) {
+      return true;
+    }
+
+    return trimmed.match(/\/\*\*\/\s*$/) !== null;
   }
 
   public static IsDocComment(activeLine: string): boolean {

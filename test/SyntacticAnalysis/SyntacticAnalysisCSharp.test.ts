@@ -218,3 +218,22 @@ suite('SyntacticAnalysis.SyntacticAnalysisCSharp.IsClass Tests', () => {
             assert.equal(SyntacticAnalysisCSharp.IsDocComment(' /// '), true, ' /// ');
         });
 });
+
+
+suite('SyntacticAnalysis.SyntacticAnalysisCSharp.IsCppCommentStrict Tests', () => {
+
+    test('Detects standard doc comment opener', () => {
+        assert.equal(SyntacticAnalysisCSharp.IsCppCommentStrict('/**'), true);
+    });
+
+    test('Handles auto-inserted */ from editor helpers', () => {
+        assert.equal(SyntacticAnalysisCSharp.IsCppCommentStrict('/**/'), true);
+        assert.equal(SyntacticAnalysisCSharp.IsCppCommentStrict('/** */'), true);
+        assert.equal(SyntacticAnalysisCSharp.IsCppCommentStrict('/**  */\t'), true);
+    });
+
+    test('Rejects comments that already contain content', () => {
+        assert.equal(SyntacticAnalysisCSharp.IsCppCommentStrict('/** text */'), false);
+        assert.equal(SyntacticAnalysisCSharp.IsCppCommentStrict('/* not a doc */'), false);
+    });
+});

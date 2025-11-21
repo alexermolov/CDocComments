@@ -7,6 +7,9 @@ Generate XML/Doxygen documentation comments for C#, C, and C++ in Visual Studio 
 
 ## Usage
 
+### Flexible Comment Styles
+**NEW:** You can now use **both comment styles in any C-family file**, regardless of the file extension! The extension automatically detects which style you're using:
+
 Type "///", it auto-generates an XML documentation comment like this:
 ```
 /// <summary>
@@ -14,7 +17,7 @@ Type "///", it auto-generates an XML documentation comment like this:
 /// </summary>
 ```
 
-Type "/**" and push Enter, it auto-generates an documentation comment like this:
+Type "/**" and push Enter, it auto-generates a Doxygen documentation comment like this:
 ```
 /** 
  * @brief  
@@ -23,6 +26,8 @@ Type "/**" and push Enter, it auto-generates an documentation comment like this:
  * @retval None
  */
 ```
+
+✨ **Use `///` in C++ files or `/**` in C# files** - the extension will generate the appropriate documentation format based on what you type!
 
 ## Configuration
 

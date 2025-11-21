@@ -71,20 +71,20 @@ export class VSCodeApi {
         this._activeEditor.selection = move;
     }
 
-    public InsertText(position: Position, text: string) {
-        this._activeEditor.edit((editBuilder) => {
+    public InsertText(position: Position, text: string): Thenable<boolean> {
+        return this._activeEditor.edit((editBuilder) => {
             editBuilder.insert(position, text);
         });
     }
 
-    public DeleteText(anchor: Position, position: Position) {
-        this._activeEditor.edit((editBuilder) => {
+    public DeleteText(anchor: Position, position: Position): Thenable<boolean> {
+        return this._activeEditor.edit((editBuilder) => {
             editBuilder.delete(new Selection(anchor, position));
         });
     }
 
-    public ReplaceText(selection: Selection, text: string) {
-        this._activeEditor.edit((editBuilder) => {
+    public ReplaceText(selection: Selection, text: string): Thenable<boolean> {
+        return this._activeEditor.edit((editBuilder) => {
             editBuilder.replace(selection, text);
         });
     }

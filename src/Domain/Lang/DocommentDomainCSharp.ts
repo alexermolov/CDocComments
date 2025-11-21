@@ -16,31 +16,13 @@ export class DocommentDomainCSharp extends DocommentDomain {
 
   /* @override */
   public IsTriggerDocomment(language: string): boolean {
-    switch (language) {
-      case 'csharp':
-        return this.IsTriggerDocommentCssharp();
-
-      case 'cpp':
-      case 'c':
-        return this.IsTriggerDocommentCpp();
-
-      default:
-        return this.IsTriggerDocommentCssharp();
-    }
+    // Check both comment styles regardless of language
+    return this.IsTriggerDocommentCssharp() || this.IsTriggerDocommentCpp();
   }
 
   public IsTriggerNewCommentLine(language: string): boolean {
-    switch (language) {
-      case 'csharp':
-        return this.IsTriggerEmptyCommentLine('sharp');
-
-      case 'cpp':
-      case 'c':
-        return this.IsTriggerEmptyCommentLine('cpp');
-
-      default:
-        return this.IsTriggerEmptyCommentLine('sharp');
-    }
+    // Check both comment styles regardless of language
+    return this.IsTriggerEmptyCommentLine('sharp') || this.IsTriggerEmptyCommentLine('cpp');
   }
 
   /* @override */
@@ -112,14 +94,19 @@ export class DocommentDomainCSharp extends DocommentDomain {
   }
 
   public GeneEmptyCommentLine(language: string) {
-    switch (language) {
-      case 'csharp':
-        return '/// ';
-
-      case 'cpp':
-      case 'c':
-        return '* ';
+    // Auto-detect comment style from current line
+    const nexLine: string = this._vsCodeApi.ReadNextLineFromCurrent();
+    
+    if (SyntacticAnalysisCSharp.IsCppCommentPart(nexLine)) {
+      return '* ';
     }
+    
+    if (SyntacticAnalysisCSharp.IsSharpCommentPart(nexLine)) {
+      return '/// ';
+    }
+    
+    // Default to C# style
+    return '/// ';
   }
 
   /* @override */
@@ -128,6 +115,10 @@ export class DocommentDomainCSharp extends DocommentDomain {
     codeType: CodeType,
     language: string
   ): string {
+    // Auto-detect comment style from current line
+    const activeLine: string = this._vsCodeApi.ReadLineAtCurrent();
+    const isCppStyle = SyntacticAnalysisCSharp.IsCppCommentStrict(activeLine);
+    
     let paramNameList: Array<string> = null;
     let genericNameList: Array<string> = null;
     let hasReturn = false;
@@ -177,6 +168,10 @@ export class DocommentDomainCSharp extends DocommentDomain {
         hasReturn = SyntacticAnalysisCSharp.HasPropertyReturn(code);
         break;
       case CodeType.Comment:
+        // Auto-detect comment style for new line in existing comment
+        if (isCppStyle) {
+          return '* ';
+        }
         return '/// ';
       case CodeType.None:
         return '';
@@ -184,26 +179,16 @@ export class DocommentDomainCSharp extends DocommentDomain {
         return '';
     }
 
-    switch (language) {
-      case 'csharp':
-        return this.GeneSummary(
-          code,
-          paramNameList,
-          hasReturn,
-          genericNameList
-        );
-
-      case 'cpp':
-      case 'c':
-        return this.GeneSummaryCpp(code, paramNameList, hasReturn);
-
-      default:
-        return this.GeneSummary(
-          code,
-          paramNameList,
-          hasReturn,
-          genericNameList
-        );
+    // Use detected comment style instead of language
+    if (isCppStyle) {
+      return this.GeneSummaryCpp(code, codeType, paramNameList, hasReturn);
+    } else {
+      return this.GeneSummary(
+        code,
+        paramNameList,
+        hasReturn,
+        genericNameList
+      );
     }
   }
 
@@ -216,15 +201,10 @@ export class DocommentDomainCSharp extends DocommentDomain {
     if (!docomment) return;
     
     const position: Position = this._vsCodeApi.GetActivePosition();
+    const consumeDanglingCloser: boolean = this.shouldConsumeDanglingCppCloser(docomment);
 
     if (codeType === CodeType.Comment) {
-      const indentBaseLine: string = this._vsCodeApi.ReadPreviousLineFromCurrent();
-      const indent: string = StringUtil.GetIndent(
-        code,
-        indentBaseLine,
-        this._config.insertSpaces,
-        this._config.detectIdentation
-      );
+      const indent: string = this.getIndentFromPreviousLine();
       const indentLen: number = StringUtil.GetIndentLen(
         indent,
         this._config.insertSpaces,
@@ -238,23 +218,31 @@ export class DocommentDomainCSharp extends DocommentDomain {
     } else {
       const active: Position = this._vsCodeApi.GetActivePosition();
       const anchor: Position = this._vsCodeApi.GetPosition(active.line, 0);
-      let replaceSelection: Selection;
+      let end: Position;
+      const anchorLineNumber: number = anchor.line; // first line of replacement region
 
       if (this._isEnterKey) {
-        const end: Position = this._vsCodeApi.GetPosition(
-          active.line + 1,
-          0
-        );
-        replaceSelection = this._vsCodeApi.GetSelectionByPosition(anchor, end);
+        end = this._vsCodeApi.GetPosition(active.line + 1, 0);
       } else {
-        const end: Position = this._vsCodeApi.GetPosition(
-          active.line,
-          active.character
-        );
-        replaceSelection = this._vsCodeApi.GetSelectionByPosition(anchor, end);
+        end = this._vsCodeApi.GetPosition(active.line, active.character);
       }
 
-      this._vsCodeApi.ReplaceText(replaceSelection, docomment);
+      if (consumeDanglingCloser) {
+        end = this.extendSelectionToConsumeDanglingCppCloser(end);
+      }
+
+      const replaceSelection: Selection = this._vsCodeApi.GetSelectionByPosition(anchor, end);
+      this._vsCodeApi.ReplaceText(replaceSelection, docomment).then(() => {
+        // After insertion completes, normalize any duplicated closing markers produced by other extensions
+        const docLineCount = docomment.split('\n').length;
+        // Delay slightly to allow other extensions to append artifacts, then clean both C++ and C# cases
+        setTimeout(() => {
+          if (consumeDanglingCloser) {
+            this.removeDanglingCppCloserAfterInsertion(anchorLineNumber, docLineCount);
+          }
+          this.removeStraySlashInCSharpDoc(anchorLineNumber, docLineCount, docomment);
+        }, 25);
+      });
     }
   }
 
@@ -267,13 +255,7 @@ export class DocommentDomainCSharp extends DocommentDomain {
     if (!docomment) return;
     
     const curPosition = this._vsCodeApi.GetActivePosition();
-    const indentBaseLine: string = this._vsCodeApi.ReadLineAtCurrent();
-    const indent: string = StringUtil.GetIndent(
-      code,
-      indentBaseLine,
-      this._config.insertSpaces,
-      this._config.detectIdentation
-    );
+    const indent: string = this.getIndentFromActiveLine();
     const indentLen: number = StringUtil.GetIndentLen(
       indent,
       this._config.insertSpaces,
@@ -291,6 +273,28 @@ export class DocommentDomainCSharp extends DocommentDomain {
    * Private Method
    *-----------------------------------------------------------------------*/
 
+  private getIndentFromActiveLine(): string {
+    const currentLine: string = this._vsCodeApi.ReadLineAtCurrent();
+    const nextLine: string = this._vsCodeApi.ReadNextLineFromCurrent();
+    return this.computeIndent(currentLine, nextLine);
+  }
+
+  private getIndentFromPreviousLine(): string {
+    const previousLine: string = this._vsCodeApi.ReadPreviousLineFromCurrent();
+    return this.computeIndent(previousLine, previousLine);
+  }
+
+  private computeIndent(preferredLine: string, fallbackLine: string): string {
+    return (
+      StringUtil.GetIndent(
+        preferredLine,
+        fallbackLine,
+        this._config.insertSpaces,
+        this._config.detectIdentation
+      ) || ''
+    );
+  }
+
   private getEventText() {
     if (!this._event) {
       return null;
@@ -302,6 +306,96 @@ export class DocommentDomainCSharp extends DocommentDomain {
     }
 
     return eventText;
+  }
+
+  private shouldConsumeDanglingCppCloser(docomment: string): boolean {
+    if (!docomment) {
+      return false;
+    }
+
+    const trimmed = docomment.trimStart();
+    return trimmed.startsWith('/**');
+  }
+
+  private extendSelectionToConsumeDanglingCppCloser(end: Position): Position {
+    if (!end) {
+      return end;
+    }
+
+    // Check the current line where /** was typed for any trailing */
+    const currentLine = this._vsCodeApi.ReadLineAtCurrent();
+    if (!currentLine) {
+      return end;
+    }
+
+    // Look for */ anywhere on the current line after the initial /**
+    const match = currentLine.match(/\/\*\*\s*(\*\/)/);
+    if (!match) {
+      return end;
+    }
+
+    // Find the position of */ on the line
+    const closerIndex = currentLine.indexOf('*/', currentLine.indexOf('/**') + 3);
+    if (closerIndex === -1) {
+      return end;
+    }
+
+    // Extend to include the */ (and the character after it if it's whitespace)
+    const newEnd = closerIndex + 2; // position after */
+    return this._vsCodeApi.GetPosition(end.line, newEnd);
+  }
+
+  private removeDanglingCppCloserAfterInsertion(anchorLine: number, docLineCount: number): void {
+    if (anchorLine == null || docLineCount == null) return;
+
+    const lastInsertedLineNumber = anchorLine + docLineCount - 1;
+    const lastLine = this._vsCodeApi.ReadLine(lastInsertedLineNumber);
+    if (!lastLine) return;
+
+    // We expect exactly one closing marker. If more than one appears consecutively, collapse to single.
+    // Pattern examples to fix: ' */**/' ' */  */' ' */ */' (with indentation).
+    const indentMatch = lastLine.match(/^(\s*)/);
+    const indent = indentMatch ? indentMatch[1] : '';
+
+    // Extract all closing markers at end of line
+    const closersMatch = lastLine.match(/(\*\/)+(\s*)$/);
+    if (!closersMatch) return; // nothing to fix
+
+    // If more than one closing marker present, replace tail with a single '*/'
+    const closerCount = (lastLine.match(/\*\//g) || []).length;
+    if (closerCount <= 1) return;
+
+    // Keep everything before first closing marker
+    const beforeFirstCloserIndex = lastLine.indexOf('*/');
+    const keepPart = lastLine.substring(0, beforeFirstCloserIndex + 2); // include first */
+    const cleaned = keepPart; // no trailing extra spaces; preserve original indent at start
+
+    const lineStart = this._vsCodeApi.GetPosition(lastInsertedLineNumber, 0);
+    const lineEnd = this._vsCodeApi.GetPosition(lastInsertedLineNumber, lastLine.length);
+    const lineSelection = this._vsCodeApi.GetSelectionByPosition(lineStart, lineEnd);
+    this._vsCodeApi.ReplaceText(lineSelection, cleaned);
+  }
+
+  private removeStraySlashInCSharpDoc(anchorLine: number, docLineCount: number, docomment: string): void {
+    if (!docomment) return;
+    // Only apply to C# style doc comments (start with '///')
+    // Regex: leading space(s) then triple slash then optional spaces then '<'
+    if (!/^\s*\/\/\/\s*</.test(docomment)) return;
+    const lastInsertedLineNumber = anchorLine + docLineCount - 1;
+    const lastLine = this._vsCodeApi.ReadLine(lastInsertedLineNumber);
+    if (!lastLine) return;
+    // Pattern: line ends with a single stray '/' not part of '///'
+    // Example: '    /// <returns></returns>/'
+    if (/\/\s*$/.test(lastLine)) {
+      // Ensure it's not just another '///'
+      if (!lastLine.trim().endsWith('///')) {
+        const cleaned = lastLine.replace(/\/(\s*)$/, '$1');
+        const lineStart = this._vsCodeApi.GetPosition(lastInsertedLineNumber, 0);
+        const lineEnd = this._vsCodeApi.GetPosition(lastInsertedLineNumber, lastLine.length);
+        const sel = this._vsCodeApi.GetSelectionByPosition(lineStart, lineEnd);
+        this._vsCodeApi.ReplaceText(sel, cleaned);
+      }
+    }
   }
 
   private getActiveChar() {
@@ -437,18 +531,20 @@ export class DocommentDomainCSharp extends DocommentDomain {
       if (!SyntacticAnalysisCSharp.IsCppCommentStrict(activeLine)) {
         return false;
       }
+      // OK: /** detected after typing *
+      return true;
     }
     if (isEnterKey) {
       // NG: '////'
       if (!SyntacticAnalysisCSharp.IsCppCommentStrict(activeLine)) {
         return false;
       }
-    } else {
-      return false;
+      // OK: Enter pressed after /**
+      return true;
     }
 
-    // OK
-    return true;
+    // NG: Not slash/star key and not enter key
+    return false;
   }
 
   private GeneSummary(
@@ -484,20 +580,14 @@ export class DocommentDomainCSharp extends DocommentDomain {
     }
 
     // Format with proper indentation
-    const indentBaseLine: string = this._vsCodeApi.ReadLineAtCurrent();
-    const indent: string = StringUtil.GetIndent(
-      code,
-      indentBaseLine,
-      this._config.insertSpaces,
-      this._config.detectIdentation
-    );
-    
+    const indent: string = this.getIndentFromActiveLine();
     const formattedLines = docommentList.map(line => `${indent}/// ${line}`);
     return formattedLines.join('\n');
   }
 
   private GeneSummaryCpp(
     code: string,
+    codeType: CodeType,
     paramNameList: Array<string> | null,
     hasReturn: boolean
   ): string {
@@ -505,43 +595,61 @@ export class DocommentDomainCSharp extends DocommentDomain {
 
     /* C-style documentation comment */
     docommentList.push('/**');
-    docommentList.push(' * @brief  ');
-    docommentList.push(' * @note   ');
+    
+    // Determine alignment based on config
+    const alignTags = this._config.alignTags;
+    const includeNote = this._config.includeNoteTag;
+    
+    // Add @brief with or without alignment
+    if (alignTags) {
+      docommentList.push(' * @brief  ');
+    } else {
+      docommentList.push(' * @brief ');
+    }
+    
+    // Add @note if enabled
+    if (includeNote) {
+      if (alignTags) {
+        docommentList.push(' * @note   ');
+      } else {
+        docommentList.push(' * @note ');
+      }
+    }
 
     /* <param> */
     if (paramNameList && paramNameList.length > 0) {
       paramNameList.forEach((name) => {
-        docommentList.push(` * @param  ${name}: `);
+        if (alignTags) {
+          docommentList.push(` * @param  ${name}: `);
+        } else {
+          docommentList.push(` * @param ${name}: `);
+        }
       });
     }
 
-    /* <returns> */
-    if (hasReturn) {
-      docommentList.push(' * @retval ');
-    } else {
-      docommentList.push(' * @retval None');
+    /* <returns> - only add for methods, delegates, and properties */
+    const isFunction = codeType === CodeType.Method || 
+                      codeType === CodeType.DefaultMethod || 
+                      codeType === CodeType.Delegate || 
+                      codeType === CodeType.Property;
+    
+    if (isFunction) {
+      if (hasReturn) {
+        if (alignTags) {
+          docommentList.push(' * @retval ');
+        } else {
+          docommentList.push(' * @retval ');
+        }
+      } else {
+        docommentList.push(' * @retval None');
+      }
     }
 
     docommentList.push(' */');
 
     // Format with proper indentation
-    const indentBaseLine: string = this._vsCodeApi.ReadLineAtCurrent();
-    let cleanCode = code;
-    if (cleanCode.startsWith('*')) {
-      cleanCode = cleanCode.substring(1);
-    }
-
-    const indent: string = StringUtil.GetIndent(
-      cleanCode,
-      indentBaseLine,
-      this._config.insertSpaces,
-      this._config.detectIdentation
-    );
-    
-    const formattedLines = docommentList.map((line, index) => {
-      return index === 0 ? `${indent}${line}` : `${indent}${line}`;
-    });
-    
+    const indent: string = this.getIndentFromActiveLine();
+    const formattedLines = docommentList.map((line) => `${indent}${line}`);
     return formattedLines.join('\n');
   }
 }

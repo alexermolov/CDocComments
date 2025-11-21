@@ -1,6 +1,6 @@
 {
     "name": "c-doc-comments",
-    "version": "1.1.5",
+    "version": "1.2.7",
     "publisher": "alexermolov",
     "engines": {
         "vscode": "^1.12.2"
@@ -24,6 +24,16 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Press the Enter key to activate a command."
+                },
+                "docomment.alignTags": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Align tags in C/C++ documentation comments with spaces (e.g., @brief, @note, @param, @retval)."
+                },
+                "docomment.includeNoteTag": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Include @note tag in C/C++ documentation comments."
                 }
             }
         }

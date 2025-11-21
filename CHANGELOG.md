@@ -1,5 +1,14 @@
 # Change Log
 
+## 1.2.7 (Nov 21, 2025)
+
+* **Cross-Language Comment Support**: Comment styles are now independent of file type!
+  * Use `///` (XML-style) in C/C++ files
+  * Use `/**` (Doxygen-style) in C# files
+  * The extension automatically detects which style you're using based on what you type
+  * No configuration needed - just type your preferred comment starter and the appropriate format is generated
+  * Works with `activateOnEnter` setting for both comment styles
+
 ## 1.1.5 (Nov 20, 2025)
 
 * **Publisher Migration**: Moved to alexermolov publisher (original author)

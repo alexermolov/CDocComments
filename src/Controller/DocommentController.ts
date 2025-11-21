@@ -68,6 +68,8 @@ export class DocommentController implements IDocommentController {
 
         this._config = new Configuration();
         this._config.activateOnEnter = confDocomment.get<boolean>(Configuration.ACTIVATE_ON_ENTER, false);
+        this._config.alignTags = confDocomment.get<boolean>(Configuration.ALIGN_TAGS, true);
+        this._config.includeNoteTag = confDocomment.get<boolean>(Configuration.INCLUDE_NOTE_TAG, true);
         this._config.eol = confFiles.get<string>(Configuration.EOL, '\n');
         this._config.insertSpaces = confEditor.get<boolean>(Configuration.INSERT_SPACES, false);
         this._config.detectIdentation = confEditor.get<boolean>(Configuration.DETECT_IDENTATION, true);
